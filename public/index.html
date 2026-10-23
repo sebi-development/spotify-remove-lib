@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Spotify Library Cleaner</title>
+</head>
+<body>
+
+  <h1>Spotify Library Cleaner</h1>
+
+  <div id="auth-section">
+    <p id="user-info">Checking login status...</p>
+    <a href="/login"><button id="login-btn" hidden>Login with Spotify</button></a>
+    <button id="logout-btn" hidden>Logout</button>
+  </div>
+
+  <hr />
+
+  <div id="cleanup-section" hidden>
+    <h2>Clean Library</h2>
+    <p>
+      This will permanently remove <strong>all</strong> saved tracks, albums,
+      playlists, podcasts, episodes, audiobooks, and followed artists from your account.
+    </p>
+    <button id="clean-btn">Wipe my library</button>
+    <p id="cleanup-status"></p>
+    <pre id="cleanup-result"></pre>
+  </div>
+
+  <script>
+    const userInfo      = document.getElementById('user-info');
+    const loginBtn      = document.getElementById('login-btn');
+    const logoutBtn     = document.getElementById('logout-btn');
+    const cleanupSection = document.getElementById('cleanup-section');
+    const cleanBtn      = document.getElementById('clean-btn');
+    const cleanupStatus = document.getElementById('cleanup-status');
+    const cleanupResult = document.getElementById('cleanup-result');
+
+    let currentUserName = '';
+
+    // Check if there is an active session on page load
+    async function checkLogin() {
+      const res = await fetch('/api/me');
+      if (res.ok) {
+        const user = await res.json();
+        currentUserName = user.displayName;
+        userInfo.textContent = `Logged in as: ${currentUserName}`;
+        cleanupSection.hidden = false;
+        logoutBtn.hidden = false;
+      } else {
+        userInfo.textContent = 'Not logged in.';
+        loginBtn.hidden = false;
+      }
+    }
+
+    logoutBtn.addEventListener('click', async () => {
+      await fetch('/logout', { method: 'POST' });
+      location.href = '/'; // reload: checkLogin() now gets a 401 and shows the login button
+    });
+
+    cleanBtn.addEventListener('click', async () => {
+      const confirmed = confirm(
+        `ACCOUNT: ${currentUserName}\n\n` +
+        'WARNING: This will permanently delete the entire Spotify library of THIS account.\n\n' +
+        '• All saved tracks (Liked Songs)\n' +
+        '• All saved albums\n' +
+        '• All playlists\n' +
+        '• All saved podcasts & episodes\n' +
+        '• All saved audiobooks\n' +
+        '• All followed artists\n\n' +
+        'This CANNOT be undone. Press OK to continue.'
+      );
+      if (!confirmed) return;
+
+      cleanBtn.disabled = true;
+      cleanupStatus.textContent = 'Running… check the server console for progress. This may take a minute.';
+      cleanupResult.textContent = '';
+
+      try {
+        const res = await fetch('/cleanup?confirm=DELETE&dryRun=false', { method: 'POST' });
+        const text = await res.text();
+
+        if (res.ok) {
+          const summary = JSON.parse(text);
+          cleanupStatus.textContent = `Done in ${summary.seconds.toFixed(1)}s`;
+          cleanupResult.textContent = JSON.stringify(summary, null, 2);
+        } else {
+          cleanupStatus.textContent = `Error (${res.status}): ${text}`;
+          cleanBtn.disabled = false;
+        }
+      } catch (err) {
+        cleanupStatus.textContent = `Request failed: ${err}`;
+        cleanBtn.disabled = false;
+      }
+    });
+
+    checkLogin();
+  </script>
+
+</body>
+</html>
