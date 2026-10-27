@@ -7,3 +7,9 @@ export class HttpError extends Error {
     super(message);
   }
 }
+
+export class JobAlreadyRunningError extends Error {
+  constructor() {
+    super('A job is already running');
+  }
+}

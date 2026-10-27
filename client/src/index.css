@@ -1,0 +1,22 @@
+@import "tailwindcss";
+
+/* Design tokens. Tailwind turns every --color-* into utilities: bg-accent, text-ink, border-line, … */
+@theme {
+  /* Accent: Spotify green. */
+  --color-accent: #1db954;
+  --color-accent-light: #1ed760; /* hover on accent surfaces */
+  --color-accent-dark: #117a37;  /* green TEXT / links on the light surface (contrast 5.0:1) */
+
+  /* Neutrals: off-white with a faint green cast, never pure #fff. */
+  --color-surface: #f4f6f2;        /* page */
+  --color-surface-raised: #fbfcfa; /* cards, dialogs */
+  --color-line: #dfe5dc;           /* borders, dividers */
+
+  /* Text. Dark ink on the accent (6.9:1); white on #1db954 would only reach 2.6:1. */
+  --color-ink: #0e1a13;
+  --color-ink-muted: #4a5a50; /* 6.7:1 on the page */
+
+  /* Destructive actions and errors. */
+  --color-danger: #b42318;
+  --color-danger-soft: #fdecea;
+}

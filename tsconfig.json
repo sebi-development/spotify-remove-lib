@@ -37,5 +37,8 @@
     "noUncheckedSideEffectImports": true,
     "moduleDetection": "force",
     "skipLibCheck": true,
-  }
+  },
+  // client/src is the browser's code and has its own tsconfig (client/tsconfig.json).
+  // Setting `exclude` replaces TypeScript's default, so node_modules is listed again.
+  "exclude": ["node_modules", "client/src", "client/dist"]
 }

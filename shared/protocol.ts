@@ -1,7 +1,5 @@
 import { z } from 'zod';
 
-// Server code and (later) the React client both import from this file.
-
 // One list, used twice: at runtime (validation, loops) and as a type.
 export const CATEGORY_IDS = [
   'playlists',
@@ -13,6 +11,17 @@ export const CATEGORY_IDS = [
   'artists',
 ] as const;
 export type CategoryId = (typeof CATEGORY_IDS)[number];
+
+// What the UI calls each category. Record<CategoryId, …> makes a missing or extra id a compile error.
+export const CATEGORY_LABELS: Record<CategoryId, string> = {
+  playlists: 'Playlists',
+  tracks: 'Liked Songs',
+  albums: 'Saved albums',
+  shows: 'Podcasts',
+  episodes: 'Saved episodes',
+  audiobooks: 'Audiobooks',
+  artists: 'Followed artists',
+};
 
 // ── What the cleaning engine reports while it runs ─────────────────────────
 

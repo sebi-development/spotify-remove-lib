@@ -3,69 +3,47 @@ import { config } from './config.ts';
 import cookieParser from 'cookie-parser';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { api } from './lib/spotify.ts';
-import { runCleanup } from './features/library/cleaner.ts';
-import { getAccessToken } from './features/auth/sessions.ts';
 import { authRouter } from './features/auth/routes.ts';
 import { apiRouter } from './api.ts';
 import { attachWebSocket } from './ws.ts';
-import { CATEGORIES } from './features/library/categories.ts';
 import { HttpError } from './lib/errors.ts';
+import helmet from 'helmet';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+const isProduction = config.NODE_ENV === 'production';
+const clientDir = path.join(__dirname, '..', 'client');
+
 const app = express();
-
+// The strict CSP blocks Vite's inline hot-reload scripts, so it is only on in production,
+// where the page is the built, external-script bundle.
+app.use(helmet({ contentSecurityPolicy: isProduction }));
 app.use(cookieParser());
-
-// Serve the frontend from /public
-app.use(express.static(path.join(__dirname, '..', 'public')));
 
 // ── FRONT CHANNEL ──────────────────────────────────────────────
 app.use(authRouter);
 app.use('/api', apiRouter);
-
-app.post('/cleanup', async (req, res) => {
-  const sid = req.cookies.sid;
-  // From here on, every Spotify call asks for a (possibly refreshed) token.
-  const getToken = () => getAccessToken(sid);
-  try {
-    await getToken(); // fail fast with 401 if the session is gone
-  } catch {
-    res.status(401).send('Not logged in — visit / and log in first');
-    return;
-  }
-
-  if (req.query.confirm !== 'DELETE') {
-    res.status(400).send('Pass ?confirm=DELETE to confirm you want to wipe your library.');
-    return;
-  }
-
-  // No default for a destructive action: the caller must say which one it wants.
-  const dryRunParam = req.query.dryRun;
-  if (dryRunParam !== 'true' && dryRunParam !== 'false') {
-    res.status(400).send('Pass ?dryRun=true (preview) or ?dryRun=false (real wipe) explicitly.');
-    return;
-  }
-  const dryRun = dryRunParam === 'true';
-
-  try {
-    // Log WHOSE library this is before anything is touched.
-    const me = await api(getToken, '/me') as { id: string; display_name?: string };
-    console.log(`[cleanup] ${dryRun ? 'DRY RUN' : 'REAL WIPE'} for "${me.display_name ?? me.id}" (${me.id})`);
-
-    const summary = await runCleanup(getToken, {
-      categories: CATEGORIES.map((c) => c.id),
-      dryRun,
-      onEvent: (e) => console.log('[cleanup]', e),
-    });
-    res.json(summary);
-  } catch (error) {
-    console.error('Cleanup failed:', error);
-    res.status(502).send('Cleanup failed — see the server log for details.');
-  }
+// An unknown /api path must be a JSON 404, not the frontend's index.html (the SPA fallback below).
+app.use('/api', () => {
+  throw new HttpError(404, 'not_found', 'No such API route.');
 });
+
+// ── FRONTEND (React) ───────────────────────────────────────────
+// Development: Vite runs inside this server, so the page, /api and /ws share one origin.
+// Production: serve the built files from client/dist.
+if (isProduction) {
+  const dist = path.join(clientDir, 'dist');
+  app.use(express.static(dist));
+  app.get('/{*splat}', (_req, res) => res.sendFile(path.join(dist, 'index.html')));
+} else {
+  const { createServer: createViteServer } = await import('vite'); // dev-only dependency
+  const vite = await createViteServer({
+    configFile: path.join(clientDir, 'vite.config.ts'),
+    server: { middlewareMode: true }, // hot reload uses its own port, so ws.ts's /ws upgrade check is untouched
+  });
+  app.use(vite.middlewares);
+}
 
 app.use((err: unknown, req: Request, res: Response, next: NextFunction) => {
   if (err instanceof HttpError) {

@@ -5,6 +5,7 @@ import { config } from './config.ts';
 import { getAccessToken, getSession } from './features/auth/sessions.ts';
 import { parseCookie } from 'cookie'
 import { cancelJob, getJobState, startJob, subscribe } from './features/jobs/jobs.ts';
+import { JobAlreadyRunningError } from './lib/errors.ts';
 import { ClientMessageSchema, type ServerMessage } from '../shared/protocol.ts';
 
 const HEARTBEAT_MS = 30_000
@@ -81,9 +82,12 @@ export function attachWebSocket(server: Server): void {
         case 'start':
           try {
             startJob(sid, () => getAccessToken(sid), { categories: msg.categories, dryRun: msg.dryRun })
+            
           } catch (error) {
-            // If startjob has started it will reach this branch 
-            sendError('A job is already running')
+            if (error instanceof JobAlreadyRunningError) return sendError(error.message)
+            // Never rethrow inside a socket event handler: an uncaught throw there would crash the server.
+            console.error('start failed:', error)
+            sendError('Could not start the job')
           }
           break;
         case 'cancel':
