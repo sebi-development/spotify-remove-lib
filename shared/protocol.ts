@@ -24,7 +24,6 @@ export const CATEGORY_LABELS: Record<CategoryId, string> = {
 };
 
 // ── What the cleaning engine reports while it runs ─────────────────────────
-
 export type CleanupEvent =
   | { type: 'category_started'; category: CategoryId; total: number }
   | { type: 'progress'; category: CategoryId; removed: number; total: number }

@@ -1,30 +1,42 @@
-import { useEffect, useReducer, useState } from 'react';
-import type { ServerMessage } from '../../../shared/protocol.ts';
+import { useEffect, useReducer, useRef, useState } from 'react';
 import { jobReducer } from '../utils/jobReducer.ts';
+import type { CategoryId, ClientMessage, ServerMessage } from '../../../shared/protocol.ts';
+
+const WS_URL = `ws://${location.host}/ws`;
 
 export function useCleanupSocket() {
   const [connected, setConnected] = useState(false)
-  const [job, dispatch] = useReducer(jobReducer, null)  // null = no job yet
+  const [job, dispatch] = useReducer(jobReducer, null)
+
+  const wsRef = useRef<WebSocket | null>(null)
 
   useEffect(() => {
-    const ws = new WebSocket(`ws://${location.host}/ws`)
-    ws.onopen = () => {
-      setConnected(true)
-      console.log('opened');
-    }
-    ws.onclose = () => {
-      setConnected(false)
-      console.log('closed');
-    }
+    const ws = new WebSocket(WS_URL)
+    wsRef.current = ws
+
+    ws.onopen = () => setConnected(true)
+    ws.onclose = () => setConnected(false)
     ws.onmessage = (event) => {
       const msg = JSON.parse(event.data) as ServerMessage
       dispatch(msg)
     }
+
     return () => {
       ws.close()
-      setConnected(false)
+      wsRef.current = null
     }
   }, [])
-  return { connected }
-}
 
+  const send = (msg: ClientMessage) => {
+    const ws = wsRef.current
+    if (ws?.readyState !== WebSocket.OPEN) return
+    ws.send(JSON.stringify(msg))
+  }
+
+  const startJob = (categories: CategoryId[], dryRun: boolean) => {
+    send({ type: 'start', categories, dryRun, confirm: 'DELETE' })
+  }
+
+  const cancelJob = () => send({ type: 'cancel' })
+  return { connected, job, startJob, cancelJob }
+}

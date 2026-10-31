@@ -1,6 +1,9 @@
 import { useState } from 'react';
-import type { CategoryId } from '../../../shared/protocol.ts';
+import { CATEGORY_IDS, type CategoryId } from '../../../shared/protocol.ts';
 import { CategoryChecklist } from './CategoryChecklist.tsx';
+import { ConfirmDialog } from './ConfirmDialog.tsx';
+import { RunControls } from './RunControls.tsx';
+import { ProgressList } from './ProgressList.tsx';
 import { useCleanupSocket } from '../hooks/useCleanupSocket.ts';
 import { useSummary } from '../hooks/useSummary.ts';
 
@@ -10,11 +13,14 @@ type DashboardProps = {
 };
 
 export function Dashboard({ user, onLogout }: DashboardProps) {
-  // Lives here, not in App: the server only accepts the socket for a logged-in user,
-  // and this component only exists once we are logged in.
-  const { connected } = useCleanupSocket();
+  const { connected, job, startJob, cancelJob } = useCleanupSocket();
   const summary = useSummary()
   const [selected, setSelected] = useState<Set<CategoryId>>(new Set());
+
+  const [confirming, setConfirming] = useState(false);
+
+  const chosen = CATEGORY_IDS.filter((id) => selected.has(id));
+  const items = summary.status === 'ready' ? chosen.map((id) => ({ id, count: summary.counts[id] })) : [];
 
   const toggle = (id: CategoryId) => {
     setSelected((prev) => {
@@ -64,6 +70,30 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
           <CategoryChecklist counts={summary.counts} selected={selected} onToggle={toggle} />
         )}
       </section>
+
+      <RunControls
+        selected={selected}
+        connected={connected}
+        job={job}
+        onStart={(dryRun) => {
+          if (dryRun) startJob(chosen, true);
+          else setConfirming(true);
+        }}
+      />
+
+      {confirming && (
+        <ConfirmDialog
+          accountName={user.displayName}
+          items={items}
+          onCancel={() => setConfirming(false)}
+          onConfirm={() => {
+            setConfirming(false);
+            startJob(chosen, false);
+          }}
+        />
+      )}
+
+      <ProgressList job={job} onCancel={cancelJob} />
     </main>
   );
 }
