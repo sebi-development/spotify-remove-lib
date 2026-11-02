@@ -1,60 +1,112 @@
 # Spotify Library Cleaner
 
-Wipes your entire Spotify library in one go — saved tracks, albums, playlists, podcasts, episodes, audiobooks, and followed artists.
+A modern full-stack web application to safely inspect, preview, and wipe categories from your Spotify library — playlists, liked songs, saved albums, podcasts, saved episodes, audiobooks, and followed artists.
+
+Built with **React 19**, **TypeScript**, **Tailwind CSS**, **Vite**, **Express 5**, and **WebSockets**.
+
+---
+
+## Features
+
+- **Granular Category Selection**: Choose exactly which categories to clean or wipe.
+- **Live Library Inspection**: Automatically counts and displays current item counts per category upon logging in.
+- **Safe Dry Run Mode**: Default simulation mode lets you preview removals without deleting anything.
+- **Confirmation Dialog**: Real runs require explicit confirmation detailing the target account and item counts before performing irreversible actions.
+- **Real-Time Progress**: Live WebSocket updates showing per-category progress bars, status indicators, and completion summaries.
+- **Safety Cancellation**: Stop an in-progress job at any time via the UI, or automatically cancel if all browser tabs are closed.
+- **Library Backup**: Stream a full JSON backup of selected categories prior to cleaning.
+
+---
 
 ## Setup
 
-**1. Install dependencies**
+### 1. Install dependencies
+
 ```bash
 pnpm install
 ```
 
-**2. Create a Spotify app**
+### 2. Create a Spotify App
 
-Go to [developer.spotify.com/dashboard], create an app, and add the following Redirect URI in its settings:
-```
-http://127.0.0.1:8888/callback
-```
+1. Go to the [Spotify Developer Dashboard](https://developer.spotify.com/dashboard) and log in.
+2. Create an app (or select an existing one).
+3. In your app settings, add the following **Redirect URI**:
+   ```
+   http://127.0.0.1:8888/callback
+   ```
+   *(Note: Spotify requires `http://127.0.0.1:...` rather than `localhost` for strict URI matching).*
 
-**3. Create `.env` in the project root**
+### 3. Create `.env` in the project root
+
+Copy `.env.example` or create a `.env` file:
+
 ```env
 CLIENT_ID=your_spotify_client_id
-CLIENT_SECRET=your_spotify_client_secret
 REDIRECT_URI=http://127.0.0.1:8888/callback
+PORT=8888
 ```
 
-## Run
+*(Note: Uses OAuth 2.0 PKCE with SHA-256 code challenge/verifier; no `CLIENT_SECRET` is required).*
 
-```bash
-pnpm start
-```
+---
 
-Or with file-watching during development:
+## Running the Application
+
+### Development Mode
+
+Runs the Express server with file watching (`tsx watch`) and Vite middleware for instant hot module reloading (HMR):
+
 ```bash
 pnpm dev
 ```
 
-Server starts at **http://127.0.0.1:8888**
+Open **http://127.0.0.1:8888** in your browser.
+
+### Production Build & Run
+
+Build the React frontend and run the production server:
+
+```bash
+pnpm build
+pnpm start
+```
+
+### Testing & Quality Checks
+
+```bash
+pnpm test        # Run unit and integration tests with Vitest
+pnpm typecheck   # Typecheck backend and frontend TypeScript
+```
+
+---
 
 ## Usage
 
-1. Open **http://127.0.0.1:8888** in your browser
-2. Click **Login with Spotify** and authorize the app
-3. After login, click **Wipe my library**
-4. Confirm the browser dialog
-5. Wait — progress logs to the server console, result shows on the page when done
+1. Open **http://127.0.0.1:8888** in your browser.
+2. Click **Login with Spotify** and authorize the app with your account.
+3. Review your library overview showing current counts for each category.
+4. Select the categories you want to target using the checkboxes.
+5. Choose your run mode:
+   - **Dry Run (Preview)**: Keep **Dry run** checked (enabled by default) and click **Preview removal** to simulate deletion safely.
+   - **Real Run**: Uncheck **Dry run** and click **Remove from my library**. A confirmation modal will appear with your account name and total item breakdown. Confirm to proceed.
+6. Watch real-time progress bars update live. You can click **Cancel** at any time to abort remaining deletions.
 
-## Via curl (no browser)
+---
+
+## Library Backup (Optional)
+
+You can download a structured JSON backup of selected categories before cleaning. While logged in with your active session:
 
 ```bash
-# Step 1 — get a token another way, or grab sid cookie after logging in via browser
-
-# Step 2 — trigger cleanup
-curl -X POST "http://127.0.0.1:8888/cleanup?confirm=DELETE" \
+curl -O -J "http://127.0.0.1:8888/api/library/backup?categories=tracks,albums,playlists" \
   --cookie "sid=YOUR_SESSION_ID"
 ```
 
-## What gets deleted
+This streams a `spotify-backup-YYYY-MM-DD.json` file containing Spotify URIs, item names, and creator details.
+
+---
+
+## What Gets Deleted
 
 | Category | Spotify endpoint | Notes |
 |---|---|---|
@@ -65,6 +117,8 @@ curl -X POST "http://127.0.0.1:8888/cleanup?confirm=DELETE" \
 | Saved Episodes | `/me/episodes` | All saved podcast episodes |
 | Audiobooks | `/me/audiobooks` | All saved audiobooks |
 | Followed Artists | `/me/following?type=artist` | All followed artists |
+
+---
 
 ## Known Limitation: Spotify-Owned & Algorithmic Playlists
 
