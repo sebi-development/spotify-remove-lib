@@ -134,3 +134,10 @@ To remove remaining Spotify-owned playlists:
 2. Go to **Your Library** &rarr; filter by **Playlists**.
 3. Hold <kbd>Shift</kbd> (or <kbd>Cmd</kbd> / <kbd>Ctrl</kbd>) to multi-select the playlists.
 4. Right-click and choose **Remove from Your Library**. They will all be removed in seconds.
+
+---
+
+## License
+
+This project is licensed under the [MIT License](LICENSE).
+

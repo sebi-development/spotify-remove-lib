@@ -1,8 +1,7 @@
 {
-  "name": "TypeScript",
+  "name": "spotify-library-cleaner",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "Safely inspect, preview, and wipe items from your Spotify library with real-time WebSocket progress.",
   "scripts": {
     "start": "NODE_ENV=production tsx server/server.ts",
     "dev": "tsx watch server/server.ts",
@@ -11,9 +10,18 @@
     "test": "vitest run",
     "test:watch": "vitest"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "keywords": [
+    "spotify",
+    "library-cleaner",
+    "react",
+    "express",
+    "typescript",
+    "websockets",
+    "vite",
+    "tailwind"
+  ],
+  "author": "Sebik",
+  "license": "MIT",
   "type": "module",
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.3",
