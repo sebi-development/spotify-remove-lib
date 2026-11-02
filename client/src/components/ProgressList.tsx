@@ -59,6 +59,27 @@ export function ProgressList({ job, onCancel }: Props) {
         })}
       </ul>
 
+      {job.status === 'done' && !job.dryRun && job.categories.includes('playlists') && (
+        <div className="rounded border border-line bg-surface p-3.5 text-xs text-ink-muted space-y-2">
+          <p className="font-semibold text-ink">Spotify-owned playlists still in your library?</p>
+          <p>
+            Spotify&apos;s Web API restricts third-party apps from accessing or unfollowing Spotify-curated or algorithmic playlists (such as <em>Discover Weekly</em>, <em>Release Radar</em>, or <em>Daylist</em>).
+          </p>
+          <div className="pt-1 flex flex-wrap items-center gap-2">
+            <a
+              href="https://open.spotify.com/collection/playlists"
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1 font-medium text-accent-dark hover:underline"
+            >
+              Open Spotify Web Library &rarr;
+            </a>
+            <span className="text-ink-muted">·</span>
+            <span>Tip: On Spotify Desktop, hold <kbd className="rounded border border-line bg-surface-raised px-1 py-0.5 font-mono text-[10px]">Shift</kbd> to multi-select and delete them in seconds.</span>
+          </div>
+        </div>
+      )}
+
       {job.summary && (
         <footer className="border-t border-line pt-3 text-sm">
           <p className="font-medium">{job.dryRun ? 'Would remove' : 'Removed'}</p>

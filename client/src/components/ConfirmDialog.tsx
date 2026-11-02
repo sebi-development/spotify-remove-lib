@@ -9,11 +9,10 @@ type Props = {
 
 export function ConfirmDialog({ accountName, items, onConfirm, onCancel }: Props) {
   const total = items.reduce((sum, item) => sum + item.count, 0);
+  const hasPlaylists = items.some((item) => item.id === 'playlists');
 
   return (
     <dialog
-      // Open on mount. No close() on unmount: removing the element closes it, while close() would
-      // fire 'close' → onCancel, which in StrictMode's mount-unmount-mount check hides the dialog at once.
       ref={(el) => {
         if (el && !el.open) el.showModal();
       }}
@@ -30,6 +29,12 @@ export function ConfirmDialog({ accountName, items, onConfirm, onCancel }: Props
           </li>
         ))}
       </ul>
+
+      {hasPlaylists && (
+        <div className="mt-3 rounded border border-line bg-surface p-3 text-xs text-ink-muted">
+          <strong className="font-semibold text-ink">Spotify-owned playlists notice:</strong> Due to Spotify API restrictions, algorithmic and Spotify-curated playlists (e.g. <em>Discover Weekly</em>, <em>Daylist</em>) cannot be removed via third-party apps and will remain in your library.
+        </div>
+      )}
 
       <p className="mt-4 text-sm text-danger">This cannot be undone.</p>
 

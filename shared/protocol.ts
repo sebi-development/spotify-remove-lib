@@ -31,6 +31,7 @@ export type CleanupEvent =
 
 export type CleanupSummary = {
   removed: Partial<Record<CategoryId, number>>;
+  remaining?: Partial<Record<CategoryId, number>> | undefined; 
   cancelled: boolean;
   seconds: number;
 };

@@ -50,7 +50,7 @@ describe('runCleanup', () => {
     expect(requests.every((r) => r.path === '/me/shows' || r.path === '/me/library')).toBe(true);
   });
 
-  it('a job cancelled before it starts sends nothing at all', async () => {
+  it('a job cancelled before it starts sends nothing at all (not even a recount)', async () => {
     const requests = stubSpotifyLibrary(SIZES);
     const controller = new AbortController();
     controller.abort();
@@ -58,5 +58,77 @@ describe('runCleanup', () => {
 
     expect(requests).toEqual([]);
     expect(summary.cancelled).toBe(true);
+  });
+});
+
+// ── remaining: what is still in the library after a real run ──────────────
+
+// A count request is the only one that asks for limit=1 (pages ask for 50).
+const countRequests = (requests: RecordedRequest[]) => requests.filter((r) => r.params.get('limit') === '1');
+
+describe('runCleanup: remaining (recount after a real run)', () => {
+  it('reports 0 left in every touched category when Spotify removed everything', async () => {
+    stubSpotifyLibrary(SIZES);
+    const summary = await runCleanup(getToken, { categories: ALL, dryRun: false });
+
+    expect(summary.remaining).toEqual(Object.fromEntries(ALL.map((id) => [id, 0])));
+  });
+
+  it('items Spotify silently refuses to remove show up in remaining', async () => {
+    // Like Spotify-owned playlists: DELETE answers 200, but two playlists stay.
+    const refused = [fakeUri('playlists', 0), fakeUri('playlists', 1)];
+    stubSpotifyLibrary(SIZES, { refuse: (uri) => refused.includes(uri) });
+    const summary = await runCleanup(getToken, { categories: ['playlists', 'shows'], dryRun: false });
+
+    expect(summary.removed.playlists).toBe(SIZES.playlists); // the server did send them…
+    expect(summary.remaining).toEqual({ playlists: 2, shows: 0 }); // …the recount tells the truth
+  });
+
+  it('a dry run has no remaining and sends no count requests', async () => {
+    const requests = stubSpotifyLibrary(SIZES);
+    const summary = await runCleanup(getToken, { categories: ALL, dryRun: true });
+
+    expect(summary.remaining).toBeUndefined();
+    expect(countRequests(requests)).toEqual([]);
+  });
+
+  it('only the categories that ran are recounted', async () => {
+    const requests = stubSpotifyLibrary(SIZES);
+    const summary = await runCleanup(getToken, { categories: ['shows'], dryRun: false });
+
+    expect(Object.keys(summary.remaining ?? {})).toEqual(['shows']);
+    expect(countRequests(requests).map((r) => r.path)).toEqual(['/me/shows']);
+  });
+
+  it('cancelled after the first category: only that one is recounted', async () => {
+    stubSpotifyLibrary(SIZES);
+    const controller = new AbortController();
+    const summary = await runCleanup(getToken, {
+      categories: ALL,
+      dryRun: false,
+      signal: controller.signal,
+      onEvent: (e) => { if (e.type === 'category_done') controller.abort(); },
+    });
+
+    expect(summary.cancelled).toBe(true);
+    expect(summary.remaining).toEqual({ playlists: 0 }); // playlists is first in CATEGORIES
+  });
+
+  it('a failed recount does not fail the job: the deletions happened, remaining is just unknown', async () => {
+    const requests = stubSpotifyLibrary({ shows: 3 });
+    const library = globalThis.fetch;
+    let deleted = false;
+    vi.stubGlobal('fetch', async (url: string, init?: RequestInit) => {
+      if (init?.method === 'DELETE') deleted = true;
+      // After the deletes, every read fails (4xx: api() gives up at once, no retry wait).
+      if (deleted && init?.method !== 'DELETE') return new Response('{"error":"nope"}', { status: 403 });
+      return library(url, init);
+    });
+
+    const summary = await runCleanup(getToken, { categories: ['shows'], dryRun: false });
+
+    expect(summary.removed).toEqual({ shows: 3 });
+    expect(summary.remaining).toBeUndefined();
+    expect(writes(requests)).toHaveLength(1);
   });
 });

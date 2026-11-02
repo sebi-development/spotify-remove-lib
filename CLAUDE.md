@@ -33,3 +33,4 @@ Session state (`sessions`) is in-memory only: restarting the server logs everyon
 
 - Local imports use explicit `.ts` extensions (`./cleaner.ts`); keep that when adding modules (tsconfig is `module: nodenext`, `verbatimModuleSyntax`, `isolatedModules`, so use `import type` for type-only imports).
 - `/cleanup` reads its confirmation from the query string (`?confirm=DELETE`), not the body; no body parser is installed.
+- **Spotify API Limitation (Nov 27, 2024)**: Spotify-owned editorial and algorithmic playlists (`Discover Weekly`, `Daylist`, `Daily Mix`, etc.) return 404 or are omitted by the Web API for standard developer apps. They cannot be unfollowed via the third-party Web API; user guidance is provided in the UI for quick manual removal via the Spotify desktop app.

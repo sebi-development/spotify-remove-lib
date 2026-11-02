@@ -56,12 +56,27 @@ curl -X POST "http://127.0.0.1:8888/cleanup?confirm=DELETE" \
 
 ## What gets deleted
 
-| Category | Spotify endpoint |
-|---|---|
-| Playlists | `/me/playlists` |
-| Liked Songs | `/me/tracks` |
-| Saved Albums | `/me/albums` |
-| Podcasts (Shows) | `/me/shows` |
-| Saved Episodes | `/me/episodes` |
-| Audiobooks | `/me/audiobooks` |
-| Followed Artists | `/me/following?type=artist` |
+| Category | Spotify endpoint | Notes |
+|---|---|---|
+| Playlists | `/me/playlists` | User-created and followed 3rd-party playlists (see limitation below) |
+| Liked Songs | `/me/tracks` | All liked tracks |
+| Saved Albums | `/me/albums` | All saved albums |
+| Podcasts (Shows) | `/me/shows` | All followed podcasts |
+| Saved Episodes | `/me/episodes` | All saved podcast episodes |
+| Audiobooks | `/me/audiobooks` | All saved audiobooks |
+| Followed Artists | `/me/following?type=artist` | All followed artists |
+
+## Known Limitation: Spotify-Owned & Algorithmic Playlists
+
+On **November 27, 2024**, Spotify updated its Web API policy, restricting third-party applications (without legacy extended-mode approval) from accessing or modifying Spotify-owned algorithmic or editorial playlists.
+
+As a result:
+- **Deleted:** Playlists you created yourself, and playlists created by other regular Spotify users that you followed.
+- **Not deleted (API limit):** Spotify-owned playlists such as *Discover Weekly*, *Release Radar*, *Daily Mixes*, *Daylist*, or editorial playlists like *Today's Top Hits*.
+
+### Quick Workaround for Spotify Playlists
+To remove remaining Spotify-owned playlists:
+1. Open the **Spotify Desktop App** (macOS or Windows).
+2. Go to **Your Library** &rarr; filter by **Playlists**.
+3. Hold <kbd>Shift</kbd> (or <kbd>Cmd</kbd> / <kbd>Ctrl</kbd>) to multi-select the playlists.
+4. Right-click and choose **Remove from Your Library**. They will all be removed in seconds.

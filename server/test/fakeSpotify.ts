@@ -66,27 +66,51 @@ export type RecordedRequest = { method: string; path: string; params: URLSearchP
 export const fakeUri = (id: CategoryId, index: number) =>
   `spotify:${CATEGORIES.find((c) => c.id === id)!.uriType}:${id}-${index}`;
 
+type LibraryOptions = {
+  // URIs that DELETE answers with 200 but keeps, the way Spotify treats its own playlists.
+  refuse?: (uri: string) => boolean;
+};
+
 // Every category endpoint at once, with `sizes[id]` items each (0 if missing), shaped like
-// the real responses (wrapped items for tracks/albums/…). Accepts DELETE /me/library.
+// the real responses (wrapped items for tracks/albums/…). DELETE /me/library really removes
+// items, so a later count sees what is left.
 // Returns EVERY request made, in order, so tests can check what was (not) sent.
-export function stubSpotifyLibrary(sizes: Partial<Record<CategoryId, number>>): RecordedRequest[] {
+export function stubSpotifyLibrary(
+  sizes: Partial<Record<CategoryId, number>>,
+  { refuse }: LibraryOptions = {},
+): RecordedRequest[] {
   const requests: RecordedRequest[] = [];
+  // What is in the library right now: the item indexes still present, per category.
+  const library = new Map(CATEGORIES.map((c) => [c.id, Array.from({ length: sizes[c.id] ?? 0 }, (_, i) => i)]));
+
   vi.stubGlobal('fetch', async (url: string, init?: RequestInit) => {
     const u = new URL(url);
     const path = u.pathname.replace(/^\/v1/, '');
     const method = init?.method ?? 'GET';
     requests.push({ method, path, params: u.searchParams });
 
-    if (method === 'DELETE' && path === '/me/library') return new Response(null, { status: 200 });
+    if (method === 'DELETE' && path === '/me/library') {
+      for (const uri of u.searchParams.get('uris')?.split(',') ?? []) {
+        if (refuse?.(uri)) continue;
+        // fakeUri shape: spotify:<type>:<categoryId>-<index>
+        const key = uri.split(':')[2] ?? '';
+        const dash = key.lastIndexOf('-');
+        const items = library.get(key.slice(0, dash) as CategoryId);
+        const at = items?.indexOf(Number(key.slice(dash + 1))) ?? -1;
+        if (items && at >= 0) items.splice(at, 1);
+      }
+      return new Response(null, { status: 200 });
+    }
 
     const category = CATEGORIES.find((c) => c.endpoint.split('?')[0] === path);
     if (method !== 'GET' || !category) return new Response('{"error":"unknown endpoint"}', { status: 404 });
 
-    const makeItem: MakeItem = (index) => {
-      const obj = { id: `${category.id}-${index}` };
+    const present = library.get(category.id)!;
+    const makeItem: MakeItem = (position) => {
+      const obj = { id: `${category.id}-${present[position]}` };
       return category.wrapperKey ? { [category.wrapperKey]: obj } : obj;
     };
-    const total = sizes[category.id] ?? 0;
+    const total = present.length;
     const body = category.paging === 'cursor'
       ? cursorPage(u.searchParams, total, makeItem)
       : offsetPage(u.searchParams, total, makeItem);
